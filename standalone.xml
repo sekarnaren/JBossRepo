@@ -1,0 +1,1019 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<server xmlns="urn:jboss:domain:1.2">
+    <extensions>
+        <extension module="org.jboss.as.clustering.infinispan"/>
+        <extension module="org.jboss.as.configadmin"/>
+        <extension module="org.jboss.as.connector"/>
+        <extension module="org.jboss.as.deployment-scanner"/>
+        <extension module="org.jboss.as.ee"/>
+        <extension module="org.jboss.as.ejb3"/>
+        <extension module="org.jboss.as.jaxrs"/>
+        <extension module="org.jboss.as.jdr"/>
+        <extension module="org.jboss.as.jmx"/>
+        <extension module="org.jboss.as.jpa"/>
+        <extension module="org.jboss.as.logging"/>
+        <extension module="org.jboss.as.mail"/>
+        <extension module="org.jboss.as.naming"/>
+        <extension module="org.jboss.as.osgi"/>
+        <extension module="org.jboss.as.pojo"/>
+        <extension module="org.jboss.as.remoting"/>
+        <extension module="org.jboss.as.sar"/>
+        <extension module="org.jboss.as.security"/>
+        <extension module="org.jboss.as.threads"/>
+        <extension module="org.jboss.as.transactions"/>
+        <extension module="org.jboss.as.web"/>
+        <extension module="org.jboss.as.webservices"/>
+        <extension module="org.jboss.as.weld"/>
+        <extension module="org.hawkular.agent"/>
+    </extensions>
+    <management>
+        <security-realms>
+            <security-realm name="ManagementRealm">
+                <authentication>
+                    <properties path="mgmt-users.properties" relative-to="jboss.server.config.dir"/>
+                </authentication>
+            </security-realm>
+            <security-realm name="ApplicationRealm">
+                <authentication>
+                    <properties path="application-users.properties" relative-to="jboss.server.config.dir"/>
+                </authentication>
+            </security-realm>
+        </security-realms>
+        <management-interfaces>
+            <native-interface security-realm="ManagementRealm">
+                <socket-binding native="management-native"/>
+            </native-interface>
+            <http-interface security-realm="ManagementRealm">
+                <socket-binding http="management-http"/>
+            </http-interface>
+        </management-interfaces>
+    </management>
+    <profile>
+        <subsystem xmlns="urn:jboss:domain:logging:1.1">
+            <console-handler name="CONSOLE">
+                <level name="INFO"/>
+                <formatter>
+                    <pattern-formatter pattern="%d{HH:mm:ss,SSS} %-5p [%c] (%t) %s%E%n"/>
+                </formatter>
+            </console-handler>
+            <periodic-rotating-file-handler name="FILE">
+                <formatter>
+                    <pattern-formatter pattern="%d{HH:mm:ss,SSS} %-5p [%c] (%t) %s%E%n"/>
+                </formatter>
+                <file path="server.log" relative-to="jboss.server.log.dir"/>
+                <suffix value=".yyyy-MM-dd"/>
+                <append value="true"/>
+            </periodic-rotating-file-handler>
+            <logger category="com.arjuna">
+                <level name="WARN"/>
+            </logger>
+            <logger category="org.apache.tomcat.util.modeler">
+                <level name="WARN"/>
+            </logger>
+            <logger category="sun.rmi">
+                <level name="WARN"/>
+            </logger>
+            <logger category="jacorb">
+                <level name="WARN"/>
+            </logger>
+            <logger category="jacorb.config">
+                <level name="ERROR"/>
+            </logger>
+            <root-logger>
+                <level name="INFO"/>
+                <handlers>
+                    <handler name="CONSOLE"/>
+                    <handler name="FILE"/>
+                </handlers>
+            </root-logger>
+        </subsystem>
+        <subsystem xmlns="urn:jboss:domain:configadmin:1.0"/>
+        <subsystem xmlns="urn:jboss:domain:datasources:1.0">
+            <datasources>
+                <datasource enabled="true" jndi-name="java:jboss/datasources/ExampleDS" pool-name="ExampleDS" use-java-context="true">
+                    <connection-url>jdbc:h2:mem:test;DB_CLOSE_DELAY=-1</connection-url>
+                    <driver>h2</driver>
+                    <security>
+                        <user-name>sa</user-name>
+                        <password>sa</password>
+                    </security>
+                </datasource>
+                <drivers>
+                    <driver module="com.h2database.h2" name="h2">
+                        <xa-datasource-class>org.h2.jdbcx.JdbcDataSource</xa-datasource-class>
+                    </driver>
+                </drivers>
+            </datasources>
+        </subsystem>
+        <subsystem xmlns="urn:jboss:domain:deployment-scanner:1.1">
+            <deployment-scanner path="deployments" relative-to="jboss.server.base.dir" scan-interval="5000"/>
+        </subsystem>
+        <subsystem xmlns="urn:jboss:domain:ee:1.0"/>
+        <subsystem xmlns="urn:jboss:domain:ejb3:1.2">
+            <session-bean>
+                <stateless>
+                    <bean-instance-pool-ref pool-name="slsb-strict-max-pool"/>
+                </stateless>
+                <stateful cache-ref="simple" default-access-timeout="5000"/>
+                <singleton default-access-timeout="5000"/>
+            </session-bean>
+            <pools>
+                <bean-instance-pools>
+                    <strict-max-pool instance-acquisition-timeout="5" instance-acquisition-timeout-unit="MINUTES" max-pool-size="20" name="slsb-strict-max-pool"/>
+                    <strict-max-pool instance-acquisition-timeout="5" instance-acquisition-timeout-unit="MINUTES" max-pool-size="20" name="mdb-strict-max-pool"/>
+                </bean-instance-pools>
+            </pools>
+            <caches>
+                <cache aliases="NoPassivationCache" name="simple"/>
+                <cache aliases="SimpleStatefulCache" name="passivating" passivation-store-ref="file"/>
+            </caches>
+            <passivation-stores>
+                <file-passivation-store name="file"/>
+            </passivation-stores>
+            <async thread-pool-name="default"/>
+            <timer-service thread-pool-name="default">
+                <data-store path="timer-service-data" relative-to="jboss.server.data.dir"/>
+            </timer-service>
+            <remote connector-ref="remoting-connector" thread-pool-name="default"/>
+            <thread-pools>
+                <thread-pool name="default">
+                    <max-threads count="10"/>
+                    <keepalive-time time="100" unit="milliseconds"/>
+                </thread-pool>
+            </thread-pools>
+        </subsystem>
+        <subsystem xmlns="urn:jboss:domain:infinispan:1.2" default-cache-container="hibernate">
+            <cache-container default-cache="local-query" name="hibernate">
+                <local-cache name="entity">
+                    <transaction mode="NON_XA"/>
+                    <eviction max-entries="10000" strategy="LRU"/>
+                    <expiration max-idle="100000"/>
+                </local-cache>
+                <local-cache name="local-query">
+                    <transaction mode="NONE"/>
+                    <eviction max-entries="10000" strategy="LRU"/>
+                    <expiration max-idle="100000"/>
+                </local-cache>
+                <local-cache name="timestamps">
+                    <transaction mode="NONE"/>
+                    <eviction strategy="NONE"/>
+                </local-cache>
+            </cache-container>
+        </subsystem>
+        <subsystem xmlns="urn:jboss:domain:jaxrs:1.0"/>
+        <subsystem xmlns="urn:jboss:domain:jca:1.1">
+            <archive-validation enabled="true" fail-on-error="true" fail-on-warn="false"/>
+            <bean-validation enabled="true"/>
+            <default-workmanager>
+                <short-running-threads>
+                    <core-threads count="50"/>
+                    <queue-length count="50"/>
+                    <max-threads count="50"/>
+                    <keepalive-time time="10" unit="seconds"/>
+                </short-running-threads>
+                <long-running-threads>
+                    <core-threads count="50"/>
+                    <queue-length count="50"/>
+                    <max-threads count="50"/>
+                    <keepalive-time time="10" unit="seconds"/>
+                </long-running-threads>
+            </default-workmanager>
+            <cached-connection-manager/>
+        </subsystem>
+        <subsystem xmlns="urn:jboss:domain:jdr:1.0"/>
+        <subsystem xmlns="urn:jboss:domain:jmx:1.1">
+            <show-model value="true"/>
+            <remoting-connector/>
+        </subsystem>
+        <subsystem xmlns="urn:jboss:domain:jpa:1.0">
+            <jpa default-datasource=""/>
+        </subsystem>
+        <subsystem xmlns="urn:jboss:domain:mail:1.0">
+            <mail-session jndi-name="java:jboss/mail/Default">
+                <smtp-server outbound-socket-binding-ref="mail-smtp"/>
+            </mail-session>
+        </subsystem>
+        <subsystem xmlns="urn:jboss:domain:naming:1.1"/>
+        <subsystem xmlns="urn:jboss:domain:osgi:1.2" activation="lazy">
+            <properties>
+                <!-- Specifies the beginning start level of the framework -->
+                <property name="org.osgi.framework.startlevel.beginning">1</property>
+            </properties>
+            <capabilities>
+                <!-- modules registered with the OSGi layer on startup -->
+                <capability name="javax.servlet.api:v25"/>
+                <capability name="javax.transaction.api"/>
+                <!-- bundles started in startlevel 1 -->
+                <capability name="org.apache.felix.log" startlevel="1"/>
+                <capability name="org.jboss.osgi.logging" startlevel="1"/>
+                <capability name="org.apache.felix.configadmin" startlevel="1"/>
+                <capability name="org.jboss.as.osgi.configadmin" startlevel="1"/>
+            </capabilities>
+        </subsystem>
+        <subsystem xmlns="urn:jboss:domain:pojo:1.0"/>
+        <subsystem xmlns="urn:jboss:domain:remoting:1.1">
+            <connector name="remoting-connector" security-realm="ApplicationRealm" socket-binding="remoting"/>
+        </subsystem>
+        <subsystem xmlns="urn:jboss:domain:resource-adapters:1.0"/>
+        <subsystem xmlns="urn:jboss:domain:sar:1.0"/>
+        <subsystem xmlns="urn:jboss:domain:security:1.1">
+            <security-domains>
+                <security-domain cache-type="default" name="other">
+                    <authentication>
+                        <login-module code="Remoting" flag="optional">
+                            <module-option name="password-stacking" value="useFirstPass"/>
+                        </login-module>
+                        <login-module code="RealmUsersRoles" flag="required">
+                            <module-option name="usersProperties" value="${jboss.server.config.dir}/application-users.properties"/>
+                            <module-option name="rolesProperties" value="${jboss.server.config.dir}/application-roles.properties"/>
+                            <module-option name="realm" value="ApplicationRealm"/>
+                            <module-option name="password-stacking" value="useFirstPass"/>
+                        </login-module>
+                    </authentication>
+                </security-domain>
+                <security-domain cache-type="default" name="jboss-web-policy">
+                    <authorization>
+                        <policy-module code="Delegating" flag="required"/>
+                    </authorization>
+                </security-domain>
+                <security-domain cache-type="default" name="jboss-ejb-policy">
+                    <authorization>
+                        <policy-module code="Delegating" flag="required"/>
+                    </authorization>
+                </security-domain>
+            </security-domains>
+        </subsystem>
+        <subsystem xmlns="urn:jboss:domain:threads:1.1"/>
+        <subsystem xmlns="urn:jboss:domain:transactions:1.1">
+            <core-environment>
+                <process-id>
+                    <uuid/>
+                </process-id>
+            </core-environment>
+            <recovery-environment socket-binding="txn-recovery-environment" status-socket-binding="txn-status-manager"/>
+            <coordinator-environment default-timeout="300"/>
+        </subsystem>
+        <subsystem xmlns="urn:jboss:domain:web:1.1" default-virtual-server="default-host" native="false">
+            <connector name="http" protocol="HTTP/1.1" scheme="http" socket-binding="http"/>
+            <virtual-server enable-welcome-root="true" name="default-host">
+                <alias name="localhost"/>
+                <alias name="example.com"/>
+            </virtual-server>
+        </subsystem>
+        <subsystem xmlns="urn:jboss:domain:webservices:1.1">
+            <modify-wsdl-address>true</modify-wsdl-address>
+            <wsdl-host>${jboss.bind.address:127.0.0.1}</wsdl-host>
+            <endpoint-config name="Standard-Endpoint-Config"/>
+            <endpoint-config name="Recording-Endpoint-Config">
+                <pre-handler-chain name="recording-handlers" protocol-bindings="##SOAP11_HTTP ##SOAP11_HTTP_MTOM ##SOAP12_HTTP ##SOAP12_HTTP_MTOM">
+                    <handler class="org.jboss.ws.common.invocation.RecordingServerHandler" name="RecordingHandler"/>
+                </pre-handler-chain>
+            </endpoint-config>
+        </subsystem>
+        <subsystem xmlns="urn:jboss:domain:weld:1.0"/>
+        <subsystem xmlns="urn:org.hawkular.agent:agent:1.0" auto-discovery-scan-period-secs="600" enabled="true">
+            <diagnostics enabled="true" interval="1" report-to="LOG" time-units="minutes"/>
+            <storage-adapter password="password" server-outbound-socket-binding-ref="hawkular" type="HAWKULAR" username="jdoe"/>
+            <metric-set-dmr enabled="true" name="WildFly Memory Metrics">
+                <metric-dmr attribute="heap-memory-usage#used" interval="30" metric-units="bytes" name="Heap Used" path="/core-service=platform-mbean/type=memory" time-units="seconds"/>
+                <metric-dmr attribute="heap-memory-usage#committed" interval="1" metric-units="bytes" name="Heap Committed" path="/core-service=platform-mbean/type=memory" time-units="minutes"/>
+                <metric-dmr attribute="heap-memory-usage#max" interval="1" metric-units="bytes" name="Heap Max" path="/core-service=platform-mbean/type=memory" time-units="minutes"/>
+                <metric-dmr attribute="non-heap-memory-usage#used" interval="30" metric-units="bytes" name="NonHeap Used" path="/core-service=platform-mbean/type=memory" time-units="seconds"/>
+                <metric-dmr attribute="non-heap-memory-usage#committed" interval="1" metric-units="bytes" name="NonHeap Committed" path="/core-service=platform-mbean/type=memory" time-units="minutes"/>
+                <metric-dmr attribute="collection-time" interval="1" metric-type="counter" metric-units="milliseconds" name="Accumulated GC Duration" path="/core-service=platform-mbean/type=garbage-collector/name=*" time-units="minutes"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="WildFly Threading Metrics">
+                <metric-dmr attribute="thread-count" interval="2" metric-units="none" name="Thread Count" path="/core-service=platform-mbean/type=threading" time-units="minutes"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="WildFly Aggregated Web Metrics">
+                <metric-dmr attribute="active-sessions" interval="1" name="Aggregated Active Web Sessions" path="/deployment=*/subsystem=undertow" time-units="minutes"/>
+                <metric-dmr attribute="max-active-sessions" interval="1" name="Aggregated Max Active Web Sessions" path="/deployment=*/subsystem=undertow" time-units="minutes"/>
+                <metric-dmr attribute="expired-sessions" interval="1" metric-type="counter" name="Aggregated Expired Web Sessions" path="/deployment=*/subsystem=undertow" time-units="minutes"/>
+                <metric-dmr attribute="rejected-sessions" interval="1" metric-type="counter" name="Aggregated Rejected Web Sessions" path="/deployment=*/subsystem=undertow" time-units="minutes"/>
+                <metric-dmr attribute="total-request-time" interval="1" metric-type="counter" name="Aggregated Servlet Request Time" path="/deployment=*/subsystem=undertow/servlet=*" time-units="minutes"/>
+                <metric-dmr attribute="request-count" interval="1" metric-type="counter" name="Aggregated Servlet Request Count" path="/deployment=*/subsystem=undertow/servlet=*" time-units="minutes"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="Undertow Metrics">
+                <metric-dmr attribute="active-sessions" interval="2" name="Active Sessions" path="/subsystem=undertow" time-units="minutes"/>
+                <metric-dmr attribute="sessions-created" interval="2" metric-type="counter" name="Sessions Created" path="/subsystem=undertow" time-units="minutes"/>
+                <metric-dmr attribute="expired-sessions" interval="2" metric-type="counter" name="Expired Sessions" path="/subsystem=undertow" time-units="minutes"/>
+                <metric-dmr attribute="rejected-sessions" interval="2" metric-type="counter" name="Rejected Sessions" path="/subsystem=undertow" time-units="minutes"/>
+                <metric-dmr attribute="max-active-sessions" interval="2" name="Max Active Sessions" path="/subsystem=undertow" time-units="minutes"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="Servlet Metrics">
+                <metric-dmr attribute="max-request-time" interval="5" metric-units="milliseconds" name="Max Request Time" path="/" time-units="minutes"/>
+                <metric-dmr attribute="min-request-time" interval="5" metric-units="milliseconds" name="Min Request Time" path="/" time-units="minutes"/>
+                <metric-dmr attribute="total-request-time" interval="5" metric-units="milliseconds" name="Total Request Time" path="/" time-units="minutes"/>
+                <metric-dmr attribute="request-count" interval="5" metric-type="counter" name="Request Count" path="/" time-units="minutes"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="Singleton EJB Metrics">
+                <metric-dmr attribute="execution-time" interval="5" name="Execution Time" path="/" time-units="minutes"/>
+                <metric-dmr attribute="invocations" interval="5" metric-type="counter" name="Invocations" path="/" time-units="minutes"/>
+                <metric-dmr attribute="peak-concurrent-invocations" interval="5" name="Peak Concurrent Invocations" path="/" time-units="minutes"/>
+                <metric-dmr attribute="wait-time" interval="5" name="Wait Time" path="/" time-units="minutes"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="Message Driven EJB Metrics">
+                <metric-dmr attribute="execution-time" interval="5" name="Execution Time" path="/" time-units="minutes"/>
+                <metric-dmr attribute="invocations" interval="5" metric-type="counter" name="Invocations" path="/" time-units="minutes"/>
+                <metric-dmr attribute="peak-concurrent-invocations" interval="5" name="Peak Concurrent Invocations" path="/" time-units="minutes"/>
+                <metric-dmr attribute="wait-time" interval="5" name="Wait Time" path="/" time-units="minutes"/>
+                <metric-dmr attribute="pool-available-count" interval="5" name="Pool Available Count" path="/" time-units="minutes"/>
+                <metric-dmr attribute="pool-create-count" interval="5" name="Pool Create Count" path="/" time-units="minutes"/>
+                <metric-dmr attribute="pool-current-size" interval="5" name="Pool Current Size" path="/" time-units="minutes"/>
+                <metric-dmr attribute="pool-max-size" interval="5" name="Pool Max Size" path="/" time-units="minutes"/>
+                <metric-dmr attribute="pool-remove-count" interval="5" name="Pool Remove Count" path="/" time-units="minutes"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="Stateless Session EJB Metrics">
+                <metric-dmr attribute="execution-time" interval="5" name="Execution Time" path="/" time-units="minutes"/>
+                <metric-dmr attribute="invocations" interval="5" metric-type="counter" name="Invocations" path="/" time-units="minutes"/>
+                <metric-dmr attribute="peak-concurrent-invocations" interval="5" name="Peak Concurrent Invocations" path="/" time-units="minutes"/>
+                <metric-dmr attribute="wait-time" interval="5" name="Wait Time" path="/" time-units="minutes"/>
+                <metric-dmr attribute="pool-available-count" interval="5" name="Pool Availabile Count" path="/" time-units="minutes"/>
+                <metric-dmr attribute="pool-create-count" interval="5" name="Pool Create Count" path="/" time-units="minutes"/>
+                <metric-dmr attribute="pool-current-size" interval="5" name="Pool Current Size" path="/" time-units="minutes"/>
+                <metric-dmr attribute="pool-max-size" interval="5" name="Pool Max Size" path="/" time-units="minutes"/>
+                <metric-dmr attribute="pool-remove-count" interval="5" name="Pool Remove Count" path="/" time-units="minutes"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="Datasource JDBC Metrics">
+                <metric-dmr attribute="PreparedStatementCacheAccessCount" interval="10" name="Prepared Statement Cache Access Count" path="/statistics=jdbc" time-units="minutes"/>
+                <metric-dmr attribute="PreparedStatementCacheAddCount" interval="10" name="Prepared Statement Cache Add Count" path="/statistics=jdbc" time-units="minutes"/>
+                <metric-dmr attribute="PreparedStatementCacheCurrentSize" interval="10" name="Prepared Statement Cache Current Size" path="/statistics=jdbc" time-units="minutes"/>
+                <metric-dmr attribute="PreparedStatementCacheDeleteCount" interval="10" name="Prepared Statement Cache Delete Count" path="/statistics=jdbc" time-units="minutes"/>
+                <metric-dmr attribute="PreparedStatementCacheHitCount" interval="10" name="Prepared Statement Cache Hit Count" path="/statistics=jdbc" time-units="minutes"/>
+                <metric-dmr attribute="PreparedStatementCacheMissCount" interval="10" name="Prepared Statement Cache Miss Count" path="/statistics=jdbc" time-units="minutes"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="Datasource Pool Metrics">
+                <metric-dmr attribute="ActiveCount" interval="30" name="Active Count" path="/statistics=pool" time-units="seconds"/>
+                <metric-dmr attribute="AvailableCount" interval="30" name="Available Count" path="/statistics=pool" time-units="seconds"/>
+                <metric-dmr attribute="AverageBlockingTime" interval="10" name="Average Blocking Time" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="AverageCreationTime" interval="30" name="Average Creation Time" path="/statistics=pool" time-units="seconds"/>
+                <metric-dmr attribute="AverageGetTime" interval="30" name="Average Get Time" path="/statistics=pool" time-units="seconds"/>
+                <metric-dmr attribute="BlockingFailureCount" interval="10" name="Blocking Failure Count" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="CreatedCount" interval="10" name="Created Count" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="DestroyedCount" interval="10" name="Destroyed Count" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="IdleCount" interval="10" name="Idle Count" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="InUseCount" interval="30" name="In Use Count" path="/statistics=pool" time-units="seconds"/>
+                <metric-dmr attribute="MaxCreationTime" interval="10" name="Max Creation Time" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="MaxGetTime" interval="10" name="Max Get Time" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="MaxUsedCount" interval="10" name="Max Used Count" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="MaxWaitCount" interval="10" name="Max Wait Count" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="MaxWaitTime" interval="10" name="Max Wait Time" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="TimedOut" interval="30" name="Timed Out" path="/statistics=pool" time-units="seconds"/>
+                <metric-dmr attribute="TotalBlockingTime" interval="10" name="Total Blocking Time" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="TotalCreationTime" interval="10" name="Total Creation Time" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="TotalGetTime" interval="10" name="Total Get Time" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="WaitCount" interval="10" name="Wait Count" path="/statistics=pool" time-units="minutes"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="Transactions Metrics">
+                <metric-dmr attribute="number-of-aborted-transactions" interval="30" metric-type="counter" name="Number of Aborted Transactions" path="/" time-units="seconds"/>
+                <metric-dmr attribute="number-of-application-rollbacks" interval="30" metric-type="counter" name="Number of Application Rollbacks" path="/" time-units="seconds"/>
+                <metric-dmr attribute="number-of-committed-transactions" interval="30" metric-type="counter" name="Number of Committed Transactions" path="/" time-units="seconds"/>
+                <metric-dmr attribute="number-of-heuristics" interval="30" metric-type="counter" name="Number of Heuristics" path="/" time-units="seconds"/>
+                <metric-dmr attribute="number-of-inflight-transactions" interval="30" name="Number of In-Flight Transactions" path="/" time-units="seconds"/>
+                <metric-dmr attribute="number-of-nested-transactions" interval="30" metric-type="counter" name="Number of Nested Transactions" path="/" time-units="seconds"/>
+                <metric-dmr attribute="number-of-resource-rollbacks" interval="30" metric-type="counter" name="Number of Resource Rollbacks" path="/" time-units="seconds"/>
+                <metric-dmr attribute="number-of-timed-out-transactions" interval="30" metric-type="counter" name="Number of Timed Out Transactions" path="/" time-units="seconds"/>
+                <metric-dmr attribute="number-of-transactions" interval="30" metric-type="counter" name="Number of Transactions" path="/" time-units="seconds"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="JMS Queue Metrics">
+                <metric-dmr attribute="consumer-count" interval="30" name="Consumer Count" path="/" time-units="seconds"/>
+                <metric-dmr attribute="delivering-count" interval="30" name="Delivering Count" path="/" time-units="seconds"/>
+                <metric-dmr attribute="message-count" interval="30" name="Message Count" path="/" time-units="seconds"/>
+                <metric-dmr attribute="messages-added" interval="30" metric-type="counter" name="Messages Added" path="/" time-units="seconds"/>
+                <metric-dmr attribute="scheduled-count" interval="30" name="Scheduled Count" path="/" time-units="seconds"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="JMS Topic Metrics">
+                <metric-dmr attribute="durable-message-count" interval="30" name="Durable Message Count" path="/" time-units="seconds"/>
+                <metric-dmr attribute="durable-subscription-count" interval="30" name="Durable Subscription Count" path="/" time-units="seconds"/>
+                <metric-dmr attribute="delivering-count" interval="30" name="Delivering Count" path="/" time-units="seconds"/>
+                <metric-dmr attribute="message-count" interval="30" name="Message Count" path="/" time-units="seconds"/>
+                <metric-dmr attribute="messages-added" interval="30" metric-type="counter" name="Messages Added" path="/" time-units="seconds"/>
+                <metric-dmr attribute="non-durable-message-count" interval="30" name="Non-Durable Message Count" path="/" time-units="seconds"/>
+                <metric-dmr attribute="non-durable-subscription-count" interval="30" name="Non-Durable Subscription Count" path="/" time-units="seconds"/>
+                <metric-dmr attribute="subscription-count" interval="30" name="Subscription Count" path="/" time-units="seconds"/>
+            </metric-set-dmr>
+            <avail-set-dmr enabled="true" name="Server Availability">
+                <avail-dmr attribute="server-state" interval="30" name="Server Availability" path="/" time-units="seconds" up-regex="run.*"/>
+            </avail-set-dmr>
+            <avail-set-dmr enabled="true" name="Deployment Status">
+                <avail-dmr attribute="status" interval="1" name="Deployment Status" path="/" time-units="minutes" up-regex="OK"/>
+            </avail-set-dmr>
+            <resource-type-set-dmr enabled="true" name="Standalone Environment">
+                <resource-type-dmr avail-sets="Server Availability" metric-sets="WildFly Memory Metrics,WildFly Threading Metrics,WildFly Aggregated Web Metrics" name="WildFly Server" path="/" resource-name-template="WildFly Server [%ManagedServerName]">
+                    <resource-config-dmr attribute="name" name="Name"/>
+                    <resource-config-dmr attribute="product-name" name="Product Name"/>
+                    <resource-config-dmr attribute="product-version" name="Version"/>
+                    <resource-config-dmr attribute="running-mode" name="Running Mode"/>
+                    <resource-config-dmr attribute="server-state" name="Server State"/>
+                    <resource-config-dmr attribute="suspend-state" name="Suspend State"/>
+                    <resource-config-dmr attribute="uuid" name="UUID"/>
+                    <resource-config-dmr attribute="node-name" name="Node Name" path="/core-service=server-environment"/>
+                    <resource-config-dmr attribute="qualified-host-name" name="Hostname" path="/core-service=server-environment"/>
+                    <resource-config-dmr attribute="bound-address" name="Bound Address" path="/socket-binding-group=standard-sockets/socket-binding=http"/>
+                    <operation-dmr name="JDR" operation-name="generate-jdr-report" path="/subsystem=jdr"/>
+                    <operation-dmr name="Reload" operation-name="reload"/>
+                    <operation-dmr name="Resume" operation-name="resume"/>
+                    <operation-dmr name="Shutdown" operation-name="shutdown"/>
+                    <!-- shutdown and restart -->
+                    <operation-dmr name="Suspend" operation-name="suspend"/>
+                    <operation-dmr name="Deploy" operation-name="deploy"/>
+                    <operation-dmr name="Undeploy" operation-name="undeploy"/>
+                </resource-type-dmr>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="Domain Environment">
+                <resource-type-dmr name="Host Controller" path="/" resource-name-template="Host Controller [%ManagedServerName]">
+                    <resource-config-dmr attribute="product-name" name="Product Name"/>
+                    <resource-config-dmr attribute="product-version" name="Version"/>
+                    <resource-config-dmr attribute="process-type" name="Process Type"/>
+                    <!-- (Host|Domain) Controller -->
+                    <resource-config-dmr attribute="local-host-name" name="Local Host Name"/>
+                    <operation-dmr name="Reload Servers" operation-name="reload-servers"/>
+                    <operation-dmr name="Restart Servers" operation-name="restart-servers"/>
+                    <operation-dmr name="Resume Servers" operation-name="resume-servers"/>
+                    <operation-dmr name="Start Servers" operation-name="start-servers"/>
+                    <operation-dmr name="Stop Servers" operation-name="stop-servers"/>
+                    <operation-dmr name="Suspend Servers" operation-name="suspend-servers"/>
+                    <operation-dmr name="Deploy" operation-name="deploy"/>
+                    <operation-dmr name="Undeploy" operation-name="undeploy"/>
+                </resource-type-dmr>
+                <resource-type-dmr name="Domain Profile" parents="Host Controller" path="/profile=*" resource-name-template="Domain Profile [%-]">
+                    <resource-config-dmr attribute="name" name="Name"/>
+                </resource-type-dmr>
+                <resource-type-dmr name="Domain Server Group" parents="Host Controller" path="/server-group=*" resource-name-template="Domain Server Group [%-]">
+                    <resource-config-dmr attribute="profile" name="Profile"/>
+                    <operation-dmr name="Reload Servers" operation-name="reload-servers"/>
+                    <operation-dmr name="Restart Servers" operation-name="restart-servers"/>
+                    <operation-dmr name="Resume Servers" operation-name="resume-servers"/>
+                    <operation-dmr name="Start Servers" operation-name="start-servers"/>
+                    <operation-dmr name="Stop Servers" operation-name="stop-servers"/>
+                    <operation-dmr name="Suspend Servers" operation-name="suspend-servers"/>
+                </resource-type-dmr>
+                <resource-type-dmr metric-sets="WildFly Memory Metrics,WildFly Threading Metrics" name="Domain Host" parents="Host Controller" path="/host=*" resource-name-template="Domain Host [%-]">
+                    <resource-config-dmr attribute="name" name="Name"/>
+                    <resource-config-dmr attribute="product-name" name="Product Name"/>
+                    <resource-config-dmr attribute="product-version" name="Version"/>
+                    <resource-config-dmr attribute="master" name="Is Domain Controller"/>
+                    <resource-config-dmr attribute="host-state" name="Host State"/>
+                    <resource-config-dmr attribute="running-mode" name="Running Mode"/>
+                    <resource-config-dmr attribute="server-state" name="Server State"/>
+                    <resource-config-dmr attribute="suspend-state" name="Suspend State"/>
+                    <resource-config-dmr attribute="uuid" name="UUID"/>
+                    <operation-dmr name="Reload" operation-name="reload"/>
+                    <operation-dmr name="Shutdown" operation-name="shutdown"/>
+                </resource-type-dmr>
+                <resource-type-dmr avail-sets="Server Availability" metric-sets="WildFly Memory Metrics,WildFly Threading Metrics,WildFly Aggregated Web Metrics" name="Domain WildFly Server" parents="Domain Host" path="/server=*" resource-name-template="Domain WildFly Server [%-]">
+                    <resource-config-dmr attribute="name" name="Name"/>
+                    <resource-config-dmr attribute="host" name="Host"/>
+                    <resource-config-dmr attribute="product-name" name="Product Name"/>
+                    <resource-config-dmr attribute="product-version" name="Version"/>
+                    <resource-config-dmr attribute="profile-name" name="Profile Name"/>
+                    <resource-config-dmr attribute="server-group" name="Server Group"/>
+                    <resource-config-dmr attribute="running-mode" name="Running Mode"/>
+                    <resource-config-dmr attribute="server-state" name="Server State"/>
+                    <resource-config-dmr attribute="suspend-state" name="Suspend State"/>
+                    <resource-config-dmr attribute="uuid" name="UUID"/>
+                    <resource-config-dmr attribute="qualified-host-name" name="Hostname" path="/core-service=server-environment"/>
+                    <resource-config-dmr attribute="node-name" name="Node Name" path="/core-service=server-environment"/>
+                    <resource-config-dmr attribute="initial-running-mode" name="Initial Running Mode" path="/core-service=server-environment"/>
+                    <resource-config-dmr attribute="base-dir" name="Base Directory" path="/core-service=server-environment"/>
+                </resource-type-dmr>
+                <resource-type-dmr name="Domain WildFly Server Controller" parents="Domain Host" path="/server-config=*" resource-name-template="Domain WildFly Server Controller [%-]">
+                    <resource-config-dmr attribute="name" name="Name"/>
+                    <resource-config-dmr attribute="group" name="Server Group"/>
+                    <resource-config-dmr attribute="auto-start" name="Auto Start"/>
+                    <resource-config-dmr attribute="status" name="Status"/>
+                    <operation-dmr name="Destroy" operation-name="destroy"/>
+                    <operation-dmr name="Kill" operation-name="kill"/>
+                    <operation-dmr name="Reload" operation-name="reload"/>
+                    <operation-dmr name="Restart" operation-name="restart"/>
+                    <operation-dmr name="Resume" operation-name="resume"/>
+                    <operation-dmr name="Start" operation-name="start"/>
+                    <operation-dmr name="Stop" operation-name="stop"/>
+                    <operation-dmr name="Suspend" operation-name="suspend"/>
+                </resource-type-dmr>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="Hawkular">
+                <resource-type-dmr name="Hawkular WildFly Agent" parents="WildFly Server,Domain WildFly Server,Domain Host" path="/subsystem=hawkular-wildfly-agent" resource-name-template="Hawkular WildFly Agent">
+                    <operation-dmr name="Status" operation-name="status"/>
+                    <operation-dmr name="Inventory Discovery Scan" operation-name="fullDiscoveryScan"/>
+                </resource-type-dmr>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="Deployment">
+                <resource-type-dmr avail-sets="Deployment Status" metric-sets="Undertow Metrics" name="Deployment" parents="WildFly Server,Domain WildFly Server" path="/deployment=*" resource-name-template="Deployment [%-]">
+                    <operation-dmr name="Redeploy" operation-name="redeploy"/>
+                    <operation-dmr name="Remove" operation-name="remove"/>
+                    <operation-dmr name="Undeploy" operation-name="undeploy"/>
+                </resource-type-dmr>
+                <resource-type-dmr metric-sets="Undertow Metrics" name="SubDeployment" parents="Deployment" path="/subdeployment=*" resource-name-template="SubDeployment [%-]"/>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="Web Component">
+                <resource-type-dmr metric-sets="Servlet Metrics" name="Servlet" parents="Deployment,SubDeployment" path="/subsystem=undertow/servlet=*" resource-name-template="Servlet [%-]"/>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="EJB">
+                <resource-type-dmr metric-sets="Singleton EJB Metrics" name="Singleton EJB" parents="Deployment,SubDeployment" path="/subsystem=ejb3/singleton-bean=*" resource-name-template="Singleton EJB [%-]"/>
+                <resource-type-dmr metric-sets="Message Driven EJB Metrics" name="Message Driven EJB" parents="Deployment,SubDeployment" path="/subsystem=ejb3/message-driven-bean=*" resource-name-template="Message Driven EJB [%-]"/>
+                <resource-type-dmr metric-sets="Stateless Session EJB Metrics" name="Stateless Session EJB" parents="Deployment,SubDeployment" path="/subsystem=ejb3/stateless-session-bean=*" resource-name-template="Stateless Session EJB [%-]"/>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="Datasource">
+                <resource-type-dmr metric-sets="Datasource Pool Metrics,Datasource JDBC Metrics" name="Datasource" parents="WildFly Server,Domain WildFly Server" path="/subsystem=datasources/data-source=*" resource-name-template="Datasource [%-]">
+                    <resource-config-dmr attribute="connection-url" name="Connection URL"/>
+                    <resource-config-dmr attribute="driver-name" name="Driver Name"/>
+                    <resource-config-dmr attribute="driver-class" name="Driver Class"/>
+                    <resource-config-dmr attribute="datasource-class" name="Datasource Class"/>
+                    <resource-config-dmr attribute="enabled" name="Enabled"/>
+                    <resource-config-dmr attribute="jndi-name" name="JNDI Name"/>
+                    <resource-config-dmr attribute="user-name" name="Username"/>
+                    <resource-config-dmr attribute="password" name="Password"/>
+                    <resource-config-dmr attribute="security-domain" name="Security Domain"/>
+                    <resource-config-dmr attribute="value" name="Connection Properties" path="/connection-properties=*"/>
+                </resource-type-dmr>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="XA Datasource">
+                <resource-type-dmr metric-sets="Datasource Pool Metrics,Datasource JDBC Metrics" name="XA Datasource" parents="WildFly Server,Domain WildFly Server" path="/subsystem=datasources/xa-data-source=*" resource-name-template="XA Datasource [%-]">
+                    <resource-config-dmr attribute="driver-name" name="Driver Name"/>
+                    <resource-config-dmr attribute="xa-datasource-class" name="XA Datasource Class"/>
+                    <resource-config-dmr attribute="enabled" name="Enabled"/>
+                    <resource-config-dmr attribute="jndi-name" name="JNDI Name"/>
+                    <resource-config-dmr attribute="user-name" name="Username"/>
+                    <resource-config-dmr attribute="password" name="Password"/>
+                    <resource-config-dmr attribute="security-domain" name="Security Domain"/>
+                    <resource-config-dmr attribute="value" name="Datasource Properties" path="/xa-datasource-properties=*"/>
+                </resource-type-dmr>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="JDBC Driver">
+                <resource-type-dmr name="JDBC Driver" parents="WildFly Server,Domain WildFly Server" path="/subsystem=datasources/jdbc-driver=*" resource-name-template="JDBC Driver [%-]"/>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="Transaction Manager">
+                <resource-type-dmr metric-sets="Transactions Metrics" name="Transaction Manager" parents="WildFly Server,Domain WildFly Server" path="/subsystem=transactions" resource-name-template="Transaction Manager"/>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="Messaging">
+                <resource-type-dmr name="Messaging Server" parents="WildFly Server,Domain WildFly Server" path="/subsystem=messaging-activemq/server=*" resource-name-template="Messaging Server [%-]"/>
+                <resource-type-dmr metric-sets="JMS Queue Metrics" name="JMS Queue" parents="Messaging Server" path="/jms-queue=*" resource-name-template="JMS Queue [%-]"/>
+                <resource-type-dmr metric-sets="JMS Topic Metrics" name="JMS Topic" parents="Messaging Server" path="/jms-topic=*" resource-name-template="JMS Topic [%-]"/>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="Socket Binding Group">
+                <resource-type-dmr name="Socket Binding Group" parents="WildFly Server,Host Controller" path="/socket-binding-group=*" resource-name-template="Socket Binding Group [%-]">
+                    <resource-config-dmr attribute="name" name="Name"/>
+                    <resource-config-dmr attribute="port-offset" name="Port Offset"/>
+                    <resource-config-dmr attribute="default-interface" name="Default Interface"/>
+                </resource-type-dmr>
+                <resource-type-dmr name="Socket Binding" parents="Socket Binding Group" path="/socket-binding=*" resource-name-template="Socket Binding [%-]">
+                    <resource-config-dmr attribute="name" name="Name"/>
+                    <resource-config-dmr attribute="interface" name="Interface"/>
+                    <resource-config-dmr attribute="port" name="Port"/>
+                    <resource-config-dmr attribute="multicast-address" name="Multicast Address" resolve-expressions="true"/>
+                    <resource-config-dmr attribute="multicast-port" name="Multicast Port"/>
+                </resource-type-dmr>
+                <resource-type-dmr name="Remote Destination Outbound Socket Binding" parents="Socket Binding Group" path="/remote-destination-outbound-socket-binding=*" resource-name-template="Remote Destination Outbound Socket Binding [%-]">
+                    <resource-config-dmr attribute="host" name="Host"/>
+                    <resource-config-dmr attribute="port" name="Port"/>
+                </resource-type-dmr>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="Clustering">
+                <resource-type-dmr name="ModCluster" parents="WildFly Server,Domain WildFly Server" path="/subsystem=modcluster" resource-name-template="ModCluster">
+                    <resource-config-dmr attribute="connector" name="Connector" path="/mod-cluster-config=configuration"/>
+                    <resource-config-dmr attribute="advertise-socket" name="Advertise Socket Binding" path="/mod-cluster-config=configuration"/>
+                </resource-type-dmr>
+                <resource-type-dmr name="JGroups" parents="WildFly Server,Domain WildFly Server" path="/subsystem=jgroups" resource-name-template="JGroups"/>
+                <resource-type-dmr name="JGroups Channel" parents="JGroups" path="/channel=*" resource-name-template="JGroups Channel [%-]">
+                    <resource-config-dmr attribute="cluster" name="Cluster Name"/>
+                    <resource-config-dmr attribute="address" name="IP Address"/>
+                    <resource-config-dmr attribute="view" name="Group Membership View"/>
+                </resource-type-dmr>
+                <resource-type-dmr name="Infinispan" parents="WildFly Server,Domain WildFly Server" path="/subsystem=infinispan" resource-name-template="Infinispan"/>
+                <resource-type-dmr name="Infinispan Cache Container" parents="Infinispan" path="/cache-container=*" resource-name-template="Infinispan Cache Container [%-]">
+                    <resource-config-dmr attribute="cluster-name" name="Cluster Name"/>
+                    <resource-config-dmr attribute="coordinator-address" name="Coordinator Address"/>
+                    <resource-config-dmr attribute="is-coordinator" name="Is Coordinator"/>
+                </resource-type-dmr>
+            </resource-type-set-dmr>
+            <!-- JMX metadata for monitoring Jolokia-enabled applications -->
+            <avail-set-jmx enabled="true" name="RuntimeAvailsJMX">
+                <avail-jmx attribute="StartTime" interval="30" name="VM Avail" time-units="seconds" up-regex="[0123456789]+"/>
+            </avail-set-jmx>
+            <avail-set-jmx enabled="true" name="MemoryPoolAvailsJMX">
+                <avail-jmx attribute="Valid" interval="30" name="Memory Pool Avail" time-units="seconds" up-regex="[tT].*"/>
+            </avail-set-jmx>
+            <metric-set-jmx enabled="true" name="RuntimeMetricsJMX">
+                <metric-jmx attribute="Uptime" interval="30" metric-units="milliseconds" name="VM Uptime" time-units="seconds"/>
+                <metric-jmx attribute="HeapMemoryUsage#used" interval="30" metric-units="bytes" name="Used Heap Memory" object-name="java.lang:type=Memory" time-units="seconds"/>
+                <metric-jmx attribute="CollectionTime" interval="30" metric-units="milliseconds" name="Aggregate GC Collection Time" object-name="java.lang:type=GarbageCollector,name=*" time-units="seconds"/>
+            </metric-set-jmx>
+            <metric-set-jmx enabled="true" name="MemoryPoolMetricsJMX">
+                <metric-jmx attribute="Usage#init" interval="2" metric-units="bytes" name="Initial" time-units="minutes"/>
+                <metric-jmx attribute="Usage#used" interval="1" metric-units="bytes" name="Used" time-units="minutes"/>
+                <metric-jmx attribute="Usage#committed" interval="1" metric-units="bytes" name="Committed" time-units="minutes"/>
+                <metric-jmx attribute="Usage#max" interval="2" metric-units="bytes" name="Max" time-units="minutes"/>
+            </metric-set-jmx>
+            <resource-type-set-jmx enabled="true" name="MainJMX">
+                <resource-type-jmx avail-sets="RuntimeAvailsJMX" metric-sets="RuntimeMetricsJMX" name="Runtime MBean" object-name="java.lang:type=Runtime" resource-name-template="JMX [%_ManagedServerName%][%type%]">
+                    <resource-config-jmx attribute="Name" name="OS Name" object-name="java.lang:type=OperatingSystem"/>
+                    <resource-config-jmx attribute="VmName" name="Java VM Name"/>
+                </resource-type-jmx>
+            </resource-type-set-jmx>
+            <resource-type-set-jmx enabled="true" name="MemoryPoolJMX">
+                <resource-type-jmx avail-sets="MemoryPoolAvailsJMX" metric-sets="MemoryPoolMetricsJMX" name="Memory Pool MBean" object-name="java.lang:type=MemoryPool,name=*" parents="Runtime MBean" resource-name-template="JMX [%_ManagedServerName%] %type% %name%">
+                    <resource-config-jmx attribute="Type" name="Type"/>
+                </resource-type-jmx>
+            </resource-type-set-jmx>
+            <managed-servers>
+                <local-dmr enabled="true" name="Local" resource-type-sets="Standalone Environment,Deployment,Web Component,EJB,Datasource,XA Datasource,JDBC Driver,Transaction Manager,Messaging,Socket Binding Group,Clustering,Hawkular"/>
+            </managed-servers>
+            <platform enabled="true">
+                <file-stores enabled="true" interval="5" time-units="minutes"/>
+                <memory enabled="true" interval="1" time-units="minutes"/>
+                <processors enabled="true" interval="1" time-units="minutes"/>
+                <power-sources enabled="false" interval="5" time-units="minutes"/>
+            </platform>
+        </subsystem>
+        <subsystem xmlns="urn:org.hawkular.agent:agent:1.0" auto-discovery-scan-period-secs="600" enabled="${hawkular.agent.enabled:true}">
+            <diagnostics enabled="true" interval="1" report-to="LOG" time-units="minutes"/>
+            <storage-adapter password="password" server-outbound-socket-binding-ref="hawkular" type="HAWKULAR" username="jdoe"/>
+            <metric-set-dmr enabled="true" name="WildFly Memory Metrics">
+                <metric-dmr attribute="heap-memory-usage#used" interval="30" metric-units="bytes" name="Heap Used" path="/core-service=platform-mbean/type=memory" time-units="seconds"/>
+                <metric-dmr attribute="heap-memory-usage#committed" interval="1" metric-units="bytes" name="Heap Committed" path="/core-service=platform-mbean/type=memory" time-units="minutes"/>
+                <metric-dmr attribute="heap-memory-usage#max" interval="1" metric-units="bytes" name="Heap Max" path="/core-service=platform-mbean/type=memory" time-units="minutes"/>
+                <metric-dmr attribute="non-heap-memory-usage#used" interval="30" metric-units="bytes" name="NonHeap Used" path="/core-service=platform-mbean/type=memory" time-units="seconds"/>
+                <metric-dmr attribute="non-heap-memory-usage#committed" interval="1" metric-units="bytes" name="NonHeap Committed" path="/core-service=platform-mbean/type=memory" time-units="minutes"/>
+                <metric-dmr attribute="collection-time" interval="1" metric-type="counter" metric-units="milliseconds" name="Accumulated GC Duration" path="/core-service=platform-mbean/type=garbage-collector/name=*" time-units="minutes"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="WildFly Threading Metrics">
+                <metric-dmr attribute="thread-count" interval="2" metric-units="none" name="Thread Count" path="/core-service=platform-mbean/type=threading" time-units="minutes"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="WildFly Aggregated Web Metrics">
+                <metric-dmr attribute="active-sessions" interval="1" name="Aggregated Active Web Sessions" path="/deployment=*/subsystem=undertow" time-units="minutes"/>
+                <metric-dmr attribute="max-active-sessions" interval="1" name="Aggregated Max Active Web Sessions" path="/deployment=*/subsystem=undertow" time-units="minutes"/>
+                <metric-dmr attribute="expired-sessions" interval="1" metric-type="counter" name="Aggregated Expired Web Sessions" path="/deployment=*/subsystem=undertow" time-units="minutes"/>
+                <metric-dmr attribute="rejected-sessions" interval="1" metric-type="counter" name="Aggregated Rejected Web Sessions" path="/deployment=*/subsystem=undertow" time-units="minutes"/>
+                <metric-dmr attribute="total-request-time" interval="1" metric-type="counter" name="Aggregated Servlet Request Time" path="/deployment=*/subsystem=undertow/servlet=*" time-units="minutes"/>
+                <metric-dmr attribute="request-count" interval="1" metric-type="counter" name="Aggregated Servlet Request Count" path="/deployment=*/subsystem=undertow/servlet=*" time-units="minutes"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="Undertow Metrics">
+                <metric-dmr attribute="active-sessions" interval="2" name="Active Sessions" path="/subsystem=undertow" time-units="minutes"/>
+                <metric-dmr attribute="sessions-created" interval="2" metric-type="counter" name="Sessions Created" path="/subsystem=undertow" time-units="minutes"/>
+                <metric-dmr attribute="expired-sessions" interval="2" metric-type="counter" name="Expired Sessions" path="/subsystem=undertow" time-units="minutes"/>
+                <metric-dmr attribute="rejected-sessions" interval="2" metric-type="counter" name="Rejected Sessions" path="/subsystem=undertow" time-units="minutes"/>
+                <metric-dmr attribute="max-active-sessions" interval="2" name="Max Active Sessions" path="/subsystem=undertow" time-units="minutes"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="Servlet Metrics">
+                <metric-dmr attribute="max-request-time" interval="5" metric-units="milliseconds" name="Max Request Time" path="/" time-units="minutes"/>
+                <metric-dmr attribute="min-request-time" interval="5" metric-units="milliseconds" name="Min Request Time" path="/" time-units="minutes"/>
+                <metric-dmr attribute="total-request-time" interval="5" metric-units="milliseconds" name="Total Request Time" path="/" time-units="minutes"/>
+                <metric-dmr attribute="request-count" interval="5" metric-type="counter" name="Request Count" path="/" time-units="minutes"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="Singleton EJB Metrics">
+                <metric-dmr attribute="execution-time" interval="5" name="Execution Time" path="/" time-units="minutes"/>
+                <metric-dmr attribute="invocations" interval="5" metric-type="counter" name="Invocations" path="/" time-units="minutes"/>
+                <metric-dmr attribute="peak-concurrent-invocations" interval="5" name="Peak Concurrent Invocations" path="/" time-units="minutes"/>
+                <metric-dmr attribute="wait-time" interval="5" name="Wait Time" path="/" time-units="minutes"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="Message Driven EJB Metrics">
+                <metric-dmr attribute="execution-time" interval="5" name="Execution Time" path="/" time-units="minutes"/>
+                <metric-dmr attribute="invocations" interval="5" metric-type="counter" name="Invocations" path="/" time-units="minutes"/>
+                <metric-dmr attribute="peak-concurrent-invocations" interval="5" name="Peak Concurrent Invocations" path="/" time-units="minutes"/>
+                <metric-dmr attribute="wait-time" interval="5" name="Wait Time" path="/" time-units="minutes"/>
+                <metric-dmr attribute="pool-available-count" interval="5" name="Pool Available Count" path="/" time-units="minutes"/>
+                <metric-dmr attribute="pool-create-count" interval="5" name="Pool Create Count" path="/" time-units="minutes"/>
+                <metric-dmr attribute="pool-current-size" interval="5" name="Pool Current Size" path="/" time-units="minutes"/>
+                <metric-dmr attribute="pool-max-size" interval="5" name="Pool Max Size" path="/" time-units="minutes"/>
+                <metric-dmr attribute="pool-remove-count" interval="5" name="Pool Remove Count" path="/" time-units="minutes"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="Stateless Session EJB Metrics">
+                <metric-dmr attribute="execution-time" interval="5" name="Execution Time" path="/" time-units="minutes"/>
+                <metric-dmr attribute="invocations" interval="5" metric-type="counter" name="Invocations" path="/" time-units="minutes"/>
+                <metric-dmr attribute="peak-concurrent-invocations" interval="5" name="Peak Concurrent Invocations" path="/" time-units="minutes"/>
+                <metric-dmr attribute="wait-time" interval="5" name="Wait Time" path="/" time-units="minutes"/>
+                <metric-dmr attribute="pool-available-count" interval="5" name="Pool Availabile Count" path="/" time-units="minutes"/>
+                <metric-dmr attribute="pool-create-count" interval="5" name="Pool Create Count" path="/" time-units="minutes"/>
+                <metric-dmr attribute="pool-current-size" interval="5" name="Pool Current Size" path="/" time-units="minutes"/>
+                <metric-dmr attribute="pool-max-size" interval="5" name="Pool Max Size" path="/" time-units="minutes"/>
+                <metric-dmr attribute="pool-remove-count" interval="5" name="Pool Remove Count" path="/" time-units="minutes"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="Datasource JDBC Metrics">
+                <metric-dmr attribute="PreparedStatementCacheAccessCount" interval="10" name="Prepared Statement Cache Access Count" path="/statistics=jdbc" time-units="minutes"/>
+                <metric-dmr attribute="PreparedStatementCacheAddCount" interval="10" name="Prepared Statement Cache Add Count" path="/statistics=jdbc" time-units="minutes"/>
+                <metric-dmr attribute="PreparedStatementCacheCurrentSize" interval="10" name="Prepared Statement Cache Current Size" path="/statistics=jdbc" time-units="minutes"/>
+                <metric-dmr attribute="PreparedStatementCacheDeleteCount" interval="10" name="Prepared Statement Cache Delete Count" path="/statistics=jdbc" time-units="minutes"/>
+                <metric-dmr attribute="PreparedStatementCacheHitCount" interval="10" name="Prepared Statement Cache Hit Count" path="/statistics=jdbc" time-units="minutes"/>
+                <metric-dmr attribute="PreparedStatementCacheMissCount" interval="10" name="Prepared Statement Cache Miss Count" path="/statistics=jdbc" time-units="minutes"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="Datasource Pool Metrics">
+                <metric-dmr attribute="ActiveCount" interval="30" name="Active Count" path="/statistics=pool" time-units="seconds"/>
+                <metric-dmr attribute="AvailableCount" interval="30" name="Available Count" path="/statistics=pool" time-units="seconds"/>
+                <metric-dmr attribute="AverageBlockingTime" interval="10" name="Average Blocking Time" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="AverageCreationTime" interval="30" name="Average Creation Time" path="/statistics=pool" time-units="seconds"/>
+                <metric-dmr attribute="AverageGetTime" interval="30" name="Average Get Time" path="/statistics=pool" time-units="seconds"/>
+                <metric-dmr attribute="BlockingFailureCount" interval="10" name="Blocking Failure Count" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="CreatedCount" interval="10" name="Created Count" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="DestroyedCount" interval="10" name="Destroyed Count" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="IdleCount" interval="10" name="Idle Count" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="InUseCount" interval="30" name="In Use Count" path="/statistics=pool" time-units="seconds"/>
+                <metric-dmr attribute="MaxCreationTime" interval="10" name="Max Creation Time" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="MaxGetTime" interval="10" name="Max Get Time" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="MaxUsedCount" interval="10" name="Max Used Count" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="MaxWaitCount" interval="10" name="Max Wait Count" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="MaxWaitTime" interval="10" name="Max Wait Time" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="TimedOut" interval="30" name="Timed Out" path="/statistics=pool" time-units="seconds"/>
+                <metric-dmr attribute="TotalBlockingTime" interval="10" name="Total Blocking Time" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="TotalCreationTime" interval="10" name="Total Creation Time" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="TotalGetTime" interval="10" name="Total Get Time" path="/statistics=pool" time-units="minutes"/>
+                <metric-dmr attribute="WaitCount" interval="10" name="Wait Count" path="/statistics=pool" time-units="minutes"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="Transactions Metrics">
+                <metric-dmr attribute="number-of-aborted-transactions" interval="30" metric-type="counter" name="Number of Aborted Transactions" path="/" time-units="seconds"/>
+                <metric-dmr attribute="number-of-application-rollbacks" interval="30" metric-type="counter" name="Number of Application Rollbacks" path="/" time-units="seconds"/>
+                <metric-dmr attribute="number-of-committed-transactions" interval="30" metric-type="counter" name="Number of Committed Transactions" path="/" time-units="seconds"/>
+                <metric-dmr attribute="number-of-heuristics" interval="30" metric-type="counter" name="Number of Heuristics" path="/" time-units="seconds"/>
+                <metric-dmr attribute="number-of-inflight-transactions" interval="30" name="Number of In-Flight Transactions" path="/" time-units="seconds"/>
+                <metric-dmr attribute="number-of-nested-transactions" interval="30" metric-type="counter" name="Number of Nested Transactions" path="/" time-units="seconds"/>
+                <metric-dmr attribute="number-of-resource-rollbacks" interval="30" metric-type="counter" name="Number of Resource Rollbacks" path="/" time-units="seconds"/>
+                <metric-dmr attribute="number-of-timed-out-transactions" interval="30" metric-type="counter" name="Number of Timed Out Transactions" path="/" time-units="seconds"/>
+                <metric-dmr attribute="number-of-transactions" interval="30" metric-type="counter" name="Number of Transactions" path="/" time-units="seconds"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="JMS Queue Metrics">
+                <metric-dmr attribute="consumer-count" interval="30" name="Consumer Count" path="/" time-units="seconds"/>
+                <metric-dmr attribute="delivering-count" interval="30" name="Delivering Count" path="/" time-units="seconds"/>
+                <metric-dmr attribute="message-count" interval="30" name="Message Count" path="/" time-units="seconds"/>
+                <metric-dmr attribute="messages-added" interval="30" metric-type="counter" name="Messages Added" path="/" time-units="seconds"/>
+                <metric-dmr attribute="scheduled-count" interval="30" name="Scheduled Count" path="/" time-units="seconds"/>
+            </metric-set-dmr>
+            <metric-set-dmr enabled="true" name="JMS Topic Metrics">
+                <metric-dmr attribute="durable-message-count" interval="30" name="Durable Message Count" path="/" time-units="seconds"/>
+                <metric-dmr attribute="durable-subscription-count" interval="30" name="Durable Subscription Count" path="/" time-units="seconds"/>
+                <metric-dmr attribute="delivering-count" interval="30" name="Delivering Count" path="/" time-units="seconds"/>
+                <metric-dmr attribute="message-count" interval="30" name="Message Count" path="/" time-units="seconds"/>
+                <metric-dmr attribute="messages-added" interval="30" metric-type="counter" name="Messages Added" path="/" time-units="seconds"/>
+                <metric-dmr attribute="non-durable-message-count" interval="30" name="Non-Durable Message Count" path="/" time-units="seconds"/>
+                <metric-dmr attribute="non-durable-subscription-count" interval="30" name="Non-Durable Subscription Count" path="/" time-units="seconds"/>
+                <metric-dmr attribute="subscription-count" interval="30" name="Subscription Count" path="/" time-units="seconds"/>
+            </metric-set-dmr>
+            <avail-set-dmr enabled="true" name="Server Availability">
+                <avail-dmr attribute="server-state" interval="30" name="Server Availability" path="/" time-units="seconds" up-regex="run.*"/>
+            </avail-set-dmr>
+            <avail-set-dmr enabled="true" name="Deployment Status">
+                <avail-dmr attribute="status" interval="1" name="Deployment Status" path="/" time-units="minutes" up-regex="OK"/>
+            </avail-set-dmr>
+            <resource-type-set-dmr enabled="true" name="Standalone Environment">
+                <resource-type-dmr avail-sets="Server Availability" metric-sets="WildFly Memory Metrics,WildFly Threading Metrics,WildFly Aggregated Web Metrics" name="WildFly Server" path="/" resource-name-template="WildFly Server [%ManagedServerName]">
+                    <resource-config-dmr attribute="name" name="Name"/>
+                    <resource-config-dmr attribute="product-name" name="Product Name"/>
+                    <resource-config-dmr attribute="product-version" name="Version"/>
+                    <resource-config-dmr attribute="running-mode" name="Running Mode"/>
+                    <resource-config-dmr attribute="server-state" name="Server State"/>
+                    <resource-config-dmr attribute="suspend-state" name="Suspend State"/>
+                    <resource-config-dmr attribute="uuid" name="UUID"/>
+                    <resource-config-dmr attribute="node-name" name="Node Name" path="/core-service=server-environment"/>
+                    <resource-config-dmr attribute="qualified-host-name" name="Hostname" path="/core-service=server-environment"/>
+                    <resource-config-dmr attribute="bound-address" name="Bound Address" path="/socket-binding-group=standard-sockets/socket-binding=http"/>
+                    <operation-dmr name="JDR" operation-name="generate-jdr-report" path="/subsystem=jdr"/>
+                    <operation-dmr name="Reload" operation-name="reload"/>
+                    <operation-dmr name="Resume" operation-name="resume"/>
+                    <operation-dmr name="Shutdown" operation-name="shutdown"/>
+                    <!-- shutdown and restart -->
+                    <operation-dmr name="Suspend" operation-name="suspend"/>
+                    <operation-dmr name="Deploy" operation-name="deploy"/>
+                    <operation-dmr name="Undeploy" operation-name="undeploy"/>
+                </resource-type-dmr>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="Domain Environment">
+                <resource-type-dmr name="Host Controller" path="/" resource-name-template="Host Controller [%ManagedServerName]">
+                    <resource-config-dmr attribute="product-name" name="Product Name"/>
+                    <resource-config-dmr attribute="product-version" name="Version"/>
+                    <resource-config-dmr attribute="process-type" name="Process Type"/>
+                    <!-- (Host|Domain) Controller -->
+                    <resource-config-dmr attribute="local-host-name" name="Local Host Name"/>
+                    <operation-dmr name="Reload Servers" operation-name="reload-servers"/>
+                    <operation-dmr name="Restart Servers" operation-name="restart-servers"/>
+                    <operation-dmr name="Resume Servers" operation-name="resume-servers"/>
+                    <operation-dmr name="Start Servers" operation-name="start-servers"/>
+                    <operation-dmr name="Stop Servers" operation-name="stop-servers"/>
+                    <operation-dmr name="Suspend Servers" operation-name="suspend-servers"/>
+                    <operation-dmr name="Deploy" operation-name="deploy"/>
+                    <operation-dmr name="Undeploy" operation-name="undeploy"/>
+                </resource-type-dmr>
+                <resource-type-dmr name="Domain Profile" parents="Host Controller" path="/profile=*" resource-name-template="Domain Profile [%-]">
+                    <resource-config-dmr attribute="name" name="Name"/>
+                </resource-type-dmr>
+                <resource-type-dmr name="Domain Server Group" parents="Host Controller" path="/server-group=*" resource-name-template="Domain Server Group [%-]">
+                    <resource-config-dmr attribute="profile" name="Profile"/>
+                    <operation-dmr name="Reload Servers" operation-name="reload-servers"/>
+                    <operation-dmr name="Restart Servers" operation-name="restart-servers"/>
+                    <operation-dmr name="Resume Servers" operation-name="resume-servers"/>
+                    <operation-dmr name="Start Servers" operation-name="start-servers"/>
+                    <operation-dmr name="Stop Servers" operation-name="stop-servers"/>
+                    <operation-dmr name="Suspend Servers" operation-name="suspend-servers"/>
+                </resource-type-dmr>
+                <resource-type-dmr metric-sets="WildFly Memory Metrics,WildFly Threading Metrics" name="Domain Host" parents="Host Controller" path="/host=*" resource-name-template="Domain Host [%-]">
+                    <resource-config-dmr attribute="name" name="Name"/>
+                    <resource-config-dmr attribute="product-name" name="Product Name"/>
+                    <resource-config-dmr attribute="product-version" name="Version"/>
+                    <resource-config-dmr attribute="master" name="Is Domain Controller"/>
+                    <resource-config-dmr attribute="host-state" name="Host State"/>
+                    <resource-config-dmr attribute="running-mode" name="Running Mode"/>
+                    <resource-config-dmr attribute="server-state" name="Server State"/>
+                    <resource-config-dmr attribute="suspend-state" name="Suspend State"/>
+                    <resource-config-dmr attribute="uuid" name="UUID"/>
+                    <operation-dmr name="Reload" operation-name="reload"/>
+                    <operation-dmr name="Shutdown" operation-name="shutdown"/>
+                </resource-type-dmr>
+                <resource-type-dmr avail-sets="Server Availability" metric-sets="WildFly Memory Metrics,WildFly Threading Metrics,WildFly Aggregated Web Metrics" name="Domain WildFly Server" parents="Domain Host" path="/server=*" resource-name-template="Domain WildFly Server [%-]">
+                    <resource-config-dmr attribute="name" name="Name"/>
+                    <resource-config-dmr attribute="host" name="Host"/>
+                    <resource-config-dmr attribute="product-name" name="Product Name"/>
+                    <resource-config-dmr attribute="product-version" name="Version"/>
+                    <resource-config-dmr attribute="profile-name" name="Profile Name"/>
+                    <resource-config-dmr attribute="server-group" name="Server Group"/>
+                    <resource-config-dmr attribute="running-mode" name="Running Mode"/>
+                    <resource-config-dmr attribute="server-state" name="Server State"/>
+                    <resource-config-dmr attribute="suspend-state" name="Suspend State"/>
+                    <resource-config-dmr attribute="uuid" name="UUID"/>
+                    <resource-config-dmr attribute="qualified-host-name" name="Hostname" path="/core-service=server-environment"/>
+                    <resource-config-dmr attribute="node-name" name="Node Name" path="/core-service=server-environment"/>
+                    <resource-config-dmr attribute="initial-running-mode" name="Initial Running Mode" path="/core-service=server-environment"/>
+                    <resource-config-dmr attribute="base-dir" name="Base Directory" path="/core-service=server-environment"/>
+                </resource-type-dmr>
+                <resource-type-dmr name="Domain WildFly Server Controller" parents="Domain Host" path="/server-config=*" resource-name-template="Domain WildFly Server Controller [%-]">
+                    <resource-config-dmr attribute="name" name="Name"/>
+                    <resource-config-dmr attribute="group" name="Server Group"/>
+                    <resource-config-dmr attribute="auto-start" name="Auto Start"/>
+                    <resource-config-dmr attribute="status" name="Status"/>
+                    <operation-dmr name="Destroy" operation-name="destroy"/>
+                    <operation-dmr name="Kill" operation-name="kill"/>
+                    <operation-dmr name="Reload" operation-name="reload"/>
+                    <operation-dmr name="Restart" operation-name="restart"/>
+                    <operation-dmr name="Resume" operation-name="resume"/>
+                    <operation-dmr name="Start" operation-name="start"/>
+                    <operation-dmr name="Stop" operation-name="stop"/>
+                    <operation-dmr name="Suspend" operation-name="suspend"/>
+                </resource-type-dmr>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="Hawkular">
+                <resource-type-dmr name="Hawkular WildFly Agent" parents="WildFly Server,Domain WildFly Server,Domain Host" path="/subsystem=hawkular-wildfly-agent" resource-name-template="Hawkular WildFly Agent">
+                    <operation-dmr name="Status" operation-name="status"/>
+                    <operation-dmr name="Inventory Discovery Scan" operation-name="fullDiscoveryScan"/>
+                </resource-type-dmr>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="Deployment">
+                <resource-type-dmr avail-sets="Deployment Status" metric-sets="Undertow Metrics" name="Deployment" parents="WildFly Server,Domain WildFly Server" path="/deployment=*" resource-name-template="Deployment [%-]">
+                    <operation-dmr name="Redeploy" operation-name="redeploy"/>
+                    <operation-dmr name="Remove" operation-name="remove"/>
+                    <operation-dmr name="Undeploy" operation-name="undeploy"/>
+                </resource-type-dmr>
+                <resource-type-dmr metric-sets="Undertow Metrics" name="SubDeployment" parents="Deployment" path="/subdeployment=*" resource-name-template="SubDeployment [%-]"/>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="Web Component">
+                <resource-type-dmr metric-sets="Servlet Metrics" name="Servlet" parents="Deployment,SubDeployment" path="/subsystem=undertow/servlet=*" resource-name-template="Servlet [%-]"/>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="EJB">
+                <resource-type-dmr metric-sets="Singleton EJB Metrics" name="Singleton EJB" parents="Deployment,SubDeployment" path="/subsystem=ejb3/singleton-bean=*" resource-name-template="Singleton EJB [%-]"/>
+                <resource-type-dmr metric-sets="Message Driven EJB Metrics" name="Message Driven EJB" parents="Deployment,SubDeployment" path="/subsystem=ejb3/message-driven-bean=*" resource-name-template="Message Driven EJB [%-]"/>
+                <resource-type-dmr metric-sets="Stateless Session EJB Metrics" name="Stateless Session EJB" parents="Deployment,SubDeployment" path="/subsystem=ejb3/stateless-session-bean=*" resource-name-template="Stateless Session EJB [%-]"/>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="Datasource">
+                <resource-type-dmr metric-sets="Datasource Pool Metrics,Datasource JDBC Metrics" name="Datasource" parents="WildFly Server,Domain WildFly Server" path="/subsystem=datasources/data-source=*" resource-name-template="Datasource [%-]">
+                    <resource-config-dmr attribute="connection-url" name="Connection URL"/>
+                    <resource-config-dmr attribute="driver-name" name="Driver Name"/>
+                    <resource-config-dmr attribute="driver-class" name="Driver Class"/>
+                    <resource-config-dmr attribute="datasource-class" name="Datasource Class"/>
+                    <resource-config-dmr attribute="enabled" name="Enabled"/>
+                    <resource-config-dmr attribute="jndi-name" name="JNDI Name"/>
+                    <resource-config-dmr attribute="user-name" name="Username"/>
+                    <resource-config-dmr attribute="password" name="Password"/>
+                    <resource-config-dmr attribute="security-domain" name="Security Domain"/>
+                    <resource-config-dmr attribute="value" name="Connection Properties" path="/connection-properties=*"/>
+                </resource-type-dmr>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="XA Datasource">
+                <resource-type-dmr metric-sets="Datasource Pool Metrics,Datasource JDBC Metrics" name="XA Datasource" parents="WildFly Server,Domain WildFly Server" path="/subsystem=datasources/xa-data-source=*" resource-name-template="XA Datasource [%-]">
+                    <resource-config-dmr attribute="driver-name" name="Driver Name"/>
+                    <resource-config-dmr attribute="xa-datasource-class" name="XA Datasource Class"/>
+                    <resource-config-dmr attribute="enabled" name="Enabled"/>
+                    <resource-config-dmr attribute="jndi-name" name="JNDI Name"/>
+                    <resource-config-dmr attribute="user-name" name="Username"/>
+                    <resource-config-dmr attribute="password" name="Password"/>
+                    <resource-config-dmr attribute="security-domain" name="Security Domain"/>
+                    <resource-config-dmr attribute="value" name="Datasource Properties" path="/xa-datasource-properties=*"/>
+                </resource-type-dmr>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="JDBC Driver">
+                <resource-type-dmr name="JDBC Driver" parents="WildFly Server,Domain WildFly Server" path="/subsystem=datasources/jdbc-driver=*" resource-name-template="JDBC Driver [%-]"/>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="Transaction Manager">
+                <resource-type-dmr metric-sets="Transactions Metrics" name="Transaction Manager" parents="WildFly Server,Domain WildFly Server" path="/subsystem=transactions" resource-name-template="Transaction Manager"/>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="Messaging">
+                <resource-type-dmr name="Messaging Server" parents="WildFly Server,Domain WildFly Server" path="/subsystem=messaging-activemq/server=*" resource-name-template="Messaging Server [%-]"/>
+                <resource-type-dmr metric-sets="JMS Queue Metrics" name="JMS Queue" parents="Messaging Server" path="/jms-queue=*" resource-name-template="JMS Queue [%-]"/>
+                <resource-type-dmr metric-sets="JMS Topic Metrics" name="JMS Topic" parents="Messaging Server" path="/jms-topic=*" resource-name-template="JMS Topic [%-]"/>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="Socket Binding Group">
+                <resource-type-dmr name="Socket Binding Group" parents="WildFly Server,Host Controller" path="/socket-binding-group=*" resource-name-template="Socket Binding Group [%-]">
+                    <resource-config-dmr attribute="name" name="Name"/>
+                    <resource-config-dmr attribute="port-offset" name="Port Offset"/>
+                    <resource-config-dmr attribute="default-interface" name="Default Interface"/>
+                </resource-type-dmr>
+                <resource-type-dmr name="Socket Binding" parents="Socket Binding Group" path="/socket-binding=*" resource-name-template="Socket Binding [%-]">
+                    <resource-config-dmr attribute="name" name="Name"/>
+                    <resource-config-dmr attribute="interface" name="Interface"/>
+                    <resource-config-dmr attribute="port" name="Port"/>
+                    <resource-config-dmr attribute="multicast-address" name="Multicast Address" resolve-expressions="true"/>
+                    <resource-config-dmr attribute="multicast-port" name="Multicast Port"/>
+                </resource-type-dmr>
+                <resource-type-dmr name="Remote Destination Outbound Socket Binding" parents="Socket Binding Group" path="/remote-destination-outbound-socket-binding=*" resource-name-template="Remote Destination Outbound Socket Binding [%-]">
+                    <resource-config-dmr attribute="host" name="Host"/>
+                    <resource-config-dmr attribute="port" name="Port"/>
+                </resource-type-dmr>
+            </resource-type-set-dmr>
+            <resource-type-set-dmr enabled="true" name="Clustering">
+                <resource-type-dmr name="ModCluster" parents="WildFly Server,Domain WildFly Server" path="/subsystem=modcluster" resource-name-template="ModCluster">
+                    <resource-config-dmr attribute="connector" name="Connector" path="/mod-cluster-config=configuration"/>
+                    <resource-config-dmr attribute="advertise-socket" name="Advertise Socket Binding" path="/mod-cluster-config=configuration"/>
+                </resource-type-dmr>
+                <resource-type-dmr name="JGroups" parents="WildFly Server,Domain WildFly Server" path="/subsystem=jgroups" resource-name-template="JGroups"/>
+                <resource-type-dmr name="JGroups Channel" parents="JGroups" path="/channel=*" resource-name-template="JGroups Channel [%-]">
+                    <resource-config-dmr attribute="cluster" name="Cluster Name"/>
+                    <resource-config-dmr attribute="address" name="IP Address"/>
+                    <resource-config-dmr attribute="view" name="Group Membership View"/>
+                </resource-type-dmr>
+                <resource-type-dmr name="Infinispan" parents="WildFly Server,Domain WildFly Server" path="/subsystem=infinispan" resource-name-template="Infinispan"/>
+                <resource-type-dmr name="Infinispan Cache Container" parents="Infinispan" path="/cache-container=*" resource-name-template="Infinispan Cache Container [%-]">
+                    <resource-config-dmr attribute="cluster-name" name="Cluster Name"/>
+                    <resource-config-dmr attribute="coordinator-address" name="Coordinator Address"/>
+                    <resource-config-dmr attribute="is-coordinator" name="Is Coordinator"/>
+                </resource-type-dmr>
+            </resource-type-set-dmr>
+            <!-- JMX metadata for monitoring Jolokia-enabled applications -->
+            <avail-set-jmx enabled="true" name="RuntimeAvailsJMX">
+                <avail-jmx attribute="StartTime" interval="30" name="VM Avail" time-units="seconds" up-regex="[0123456789]+"/>
+            </avail-set-jmx>
+            <avail-set-jmx enabled="true" name="MemoryPoolAvailsJMX">
+                <avail-jmx attribute="Valid" interval="30" name="Memory Pool Avail" time-units="seconds" up-regex="[tT].*"/>
+            </avail-set-jmx>
+            <metric-set-jmx enabled="true" name="RuntimeMetricsJMX">
+                <metric-jmx attribute="Uptime" interval="30" metric-units="milliseconds" name="VM Uptime" time-units="seconds"/>
+                <metric-jmx attribute="HeapMemoryUsage#used" interval="30" metric-units="bytes" name="Used Heap Memory" object-name="java.lang:type=Memory" time-units="seconds"/>
+                <metric-jmx attribute="CollectionTime" interval="30" metric-units="milliseconds" name="Aggregate GC Collection Time" object-name="java.lang:type=GarbageCollector,name=*" time-units="seconds"/>
+            </metric-set-jmx>
+            <metric-set-jmx enabled="true" name="MemoryPoolMetricsJMX">
+                <metric-jmx attribute="Usage#init" interval="2" metric-units="bytes" name="Initial" time-units="minutes"/>
+                <metric-jmx attribute="Usage#used" interval="1" metric-units="bytes" name="Used" time-units="minutes"/>
+                <metric-jmx attribute="Usage#committed" interval="1" metric-units="bytes" name="Committed" time-units="minutes"/>
+                <metric-jmx attribute="Usage#max" interval="2" metric-units="bytes" name="Max" time-units="minutes"/>
+            </metric-set-jmx>
+            <resource-type-set-jmx enabled="true" name="MainJMX">
+                <resource-type-jmx avail-sets="RuntimeAvailsJMX" metric-sets="RuntimeMetricsJMX" name="Runtime MBean" object-name="java.lang:type=Runtime" resource-name-template="JMX [%_ManagedServerName%][%type%]">
+                    <resource-config-jmx attribute="Name" name="OS Name" object-name="java.lang:type=OperatingSystem"/>
+                    <resource-config-jmx attribute="VmName" name="Java VM Name"/>
+                </resource-type-jmx>
+            </resource-type-set-jmx>
+            <resource-type-set-jmx enabled="true" name="MemoryPoolJMX">
+                <resource-type-jmx avail-sets="MemoryPoolAvailsJMX" metric-sets="MemoryPoolMetricsJMX" name="Memory Pool MBean" object-name="java.lang:type=MemoryPool,name=*" parents="Runtime MBean" resource-name-template="JMX [%_ManagedServerName%] %type% %name%">
+                    <resource-config-jmx attribute="Type" name="Type"/>
+                </resource-type-jmx>
+            </resource-type-set-jmx>
+            <managed-servers>
+                <local-dmr enabled="true" name="Local" resource-type-sets="Standalone Environment,Deployment,Web Component,EJB,Datasource,XA Datasource,JDBC Driver,Transaction Manager,Messaging,Socket Binding Group,Clustering,Hawkular"/>
+            </managed-servers>
+            <platform enabled="true">
+                <file-stores enabled="true" interval="5" time-units="minutes"/>
+                <memory enabled="true" interval="1" time-units="minutes"/>
+                <processors enabled="true" interval="1" time-units="minutes"/>
+                <power-sources enabled="false" interval="5" time-units="minutes"/>
+            </platform>
+        </subsystem>
+    </profile>
+    <interfaces>
+        <interface name="management">
+            <inet-address value="${jboss.bind.address.management:127.0.0.1}"/>
+        </interface>
+        <interface name="public">
+            <inet-address value="${jboss.bind.address:127.0.0.1}"/>
+        </interface>
+        <!-- TODO - only show this if the jacorb subsystem is added  -->
+        <interface name="unsecure">
+            <!--
+              ~  Used for IIOP sockets in the standard configuration.
+              ~                  To secure JacORB you need to setup SSL 
+              -->
+            <inet-address value="${jboss.bind.address.unsecure:127.0.0.1}"/>
+        </interface>
+    </interfaces>
+    <socket-binding-group default-interface="public" name="standard-sockets" port-offset="${jboss.socket.binding.port-offset:0}">
+        <socket-binding interface="management" name="management-native" port="${jboss.management.native.port:9999}"/>
+        <socket-binding interface="management" name="management-http" port="${jboss.management.http.port:9990}"/>
+        <socket-binding interface="management" name="management-https" port="${jboss.management.https.port:9443}"/>
+        <socket-binding name="ajp" port="8009"/>
+        <socket-binding name="http" port="8080"/>
+        <socket-binding name="https" port="8443"/>
+        <socket-binding interface="management" name="osgi-http" port="8090"/>
+        <socket-binding name="remoting" port="4447"/>
+        <socket-binding name="txn-recovery-environment" port="4712"/>
+        <socket-binding name="txn-status-manager" port="4713"/>
+        <outbound-socket-binding name="mail-smtp">
+            <remote-destination host="localhost" port="25"/>
+        </outbound-socket-binding>
+        <outbound-socket-binding name="hawkular">
+            <remote-destination host="localhost" port="8080"/>
+        </outbound-socket-binding>
+    </socket-binding-group>
+</server>
